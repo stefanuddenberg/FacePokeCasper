@@ -394,11 +394,27 @@ def average_bbox_lst(bbox_lst):
     bbox_arr = np.array(bbox_lst)
     return np.mean(bbox_arr, axis=0).tolist()
 
+def _default_mask_crop(size=512):
+    """Soft elliptical paste-back mask when mask_template.png is missing (e.g. Git LFS not pulled)."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    cy = cx = (size - 1) / 2.0
+    dist = ((yy - cy) / (size * 0.48)) ** 2 + ((xx - cx) / (size * 0.40)) ** 2
+    mask = np.clip(1.0 - dist, 0.0, 1.0)
+    mask = (mask * 255).astype(np.uint8)
+    mask = cv2.GaussianBlur(mask, (51, 51), 0)
+    return cv2.merge([mask, mask, mask])
+
+
 def prepare_paste_back(mask_crop, crop_M_c2o, dsize):
     """prepare mask for later image paste back
     """
     if mask_crop is None:
-        mask_crop = cv2.imread(make_abs_path('./resources/mask_template.png'), cv2.IMREAD_COLOR)
+        path = make_abs_path("resources/mask_template.png")
+        mask_crop = cv2.imread(path, cv2.IMREAD_COLOR)
+        if mask_crop is None or mask_crop.size == 0:
+            # Common on clusters: *.png is Git LFS and only a pointer was checked out.
+            print(f"Warning: could not load {path}; using a generated soft mask. Run `git lfs pull` to restore the official template.")
+            mask_crop = _default_mask_crop()
     mask_ori = _transform_img(mask_crop, crop_M_c2o, dsize)
     mask_ori = mask_ori.astype(np.float32) / 255.
     return mask_ori

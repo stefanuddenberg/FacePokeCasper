@@ -102,6 +102,46 @@ Contributions are welcome to help supporting other platforms!
 
 7. Open `http://localhost:8080` in your web browser.
 
+### Python / Jupyter API
+
+Use FacePoke from a notebook or script without starting the web server. Models download on first use into `$DATA_ROOT/models` (`DATA_ROOT` defaults to `/tmp/data`).
+
+If you see `NVIDIA driver on your system is too old`, reinstall the pinned CUDA 12.4 wheels (do not use an unpinned `pip install torch`):
+
+```bash
+pip install --force-reinstall torch==2.5.1+cu124 torchvision==0.20.1+cu124 torchaudio==2.5.1+cu124 --index-url https://download.pytorch.org/whl/cu124
+```
+
+Then confirm with `python -c "import torch; print(torch.__version__, torch.version.cuda)"` (expect `2.5.1+cu124` and `12.4`).
+
+If you see `numpy.core.multiarray failed to import` / `_ARRAY_API not found`, torch likely upgraded NumPy to 2.x. Pin NumPy 1.x again:
+
+```bash
+pip install "numpy==1.26.4"
+```
+
+PNG assets (including the paste-back mask) are stored with Git LFS. After clone:
+
+```bash
+git lfs install
+git lfs pull
+```
+
+Without that, paste-back falls back to a generated soft mask (edges may look slightly worse).
+
+```python
+from facepoke import FacePoke
+
+fp = FacePoke()  # downloads models once, loads LivePortrait
+fp.load("portrait.jpg")  # path, bytes, or PIL.Image
+out = fp.transform(rotate_yaw=15, eyes=-10, aaa=40, smile=20)
+out.save("out.webp")  # PIL.Image
+```
+
+Supported params: `smile`, `aaa`, `eee`, `woo`, `wink`, `pupil_x`, `pupil_y`, `eyes`, `eyebrow`, `rotate_pitch`, `rotate_yaw`, `rotate_roll`.
+
+See [`examples/facepoke_demo.ipynb`](examples/facepoke_demo.ipynb) for a walkthrough.
+
 ### Docker Deployment
 
 1. Build the Docker image:
@@ -133,6 +173,7 @@ The project structure is organized as follows:
 
 - `app.py`: Main backend server handling WebSocket connections.
 - `engine.py`: Core logic.
+- `facepoke.py`: Sync Python API for notebooks and scripts.
 - `loader.py`: Initializes and loads AI models.
 - `client/`: Frontend React application.
   - `src/`: TypeScript source files.
